@@ -1,0 +1,19 @@
+name: Sync main with upstream
+
+on:
+  schedule:
+    - cron: "0 8 * * *"   # Daily at 8 AM UTC
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sync upstream main
+        uses: tgymnich/fork-sync@v1.8
+        with:
+          owner: apache
+          base: main
+          head: main
+          token: ${{ secrets.GITHUB_TOKEN }}
