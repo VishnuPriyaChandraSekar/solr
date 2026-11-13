@@ -48,10 +48,10 @@ import org.apache.solr.common.params.MoreLikeThisParams;
 import org.apache.solr.common.params.MoreLikeThisParams.TermStyle;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.CollectionUtil;
-import org.apache.solr.common.util.ContentStream;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.handler.admin.api.MoreLikeThisAPI;
+import org.apache.solr.handler.component.DebugComponent;
 import org.apache.solr.handler.component.FacetComponent;
 import org.apache.solr.handler.component.ResponseBuilder;
 import org.apache.solr.request.SimpleFacets;
@@ -73,6 +73,7 @@ import org.apache.solr.search.SolrReturnFields;
 import org.apache.solr.search.SortSpec;
 import org.apache.solr.search.SyntaxError;
 import org.apache.solr.security.AuthorizationContext;
+import org.apache.solr.util.ContentStream;
 import org.apache.solr.util.SolrPluginUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,7 +107,7 @@ public class MoreLikeThisHandler extends RequestHandlerBase {
       ReturnFields returnFields = new SolrReturnFields(req);
       rsp.setReturnFields(returnFields);
       int flags = 0;
-      if (returnFields.wantsScore()) {
+      if (returnFields.returnsScore()) {
         flags |= SolrIndexSearcher.GET_SCORES;
       }
 
@@ -246,12 +247,10 @@ public class MoreLikeThisHandler extends RequestHandlerBase {
         dbgQuery = true;
         dbgResults = true;
       }
-      // TODO resolve duplicated code with DebugComponent.  Perhaps it should be added to
-      // doStandardDebug?
       if (dbg == true) {
         try {
           NamedList<Object> dbgInfo =
-              SolrPluginUtils.doStandardDebug(
+              DebugComponent.doStandardDebug(
                   req, q, mlt.getRawMLTQuery(), mltDocs.docList, dbgQuery, dbgResults);
           if (null != filters) {
             dbgInfo.add("filter_queries", req.getParams().getParams(CommonParams.FQ));

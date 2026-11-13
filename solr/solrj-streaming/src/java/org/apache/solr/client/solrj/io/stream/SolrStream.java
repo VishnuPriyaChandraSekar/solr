@@ -52,6 +52,8 @@ public class SolrStream extends TupleStream {
   private static final long serialVersionUID = 1;
 
   private String baseUrl;
+  private String core;
+  private String path;
   private SolrParams params;
   private int numWorkers;
   private int workerID;
@@ -63,23 +65,36 @@ public class SolrStream extends TupleStream {
   private boolean distrib = true;
   private String user;
   private String password;
-  private String core;
 
   private transient SolrClientCache clientCache;
   private transient boolean doCloseCache;
 
   /**
-   * @param baseUrl Base URL of the stream.
-   * @param params Map&lt;String, String&gt; of parameters
+   * Creates a Solr stream pointed at the specified URL and core.
+   *
+   * <p>"/select" is used as the default path unless "qt" is included in {@code params}
+   *
+   * @param baseUrl the Solr node's "base" URL (i.e. no core or collection in the path
+   * @param params query-parameters sent with the streaming request
+   * @param core the name of the collection or core to query; must be hosted at {@code baseUrl}
    */
-  public SolrStream(String baseUrl, SolrParams params) {
-    this.baseUrl = baseUrl;
-    this.params = params;
+  public SolrStream(String baseUrl, SolrParams params, String core) {
+    this(baseUrl, core, null, params);
   }
 
-  SolrStream(String baseUrl, SolrParams params, String core) {
-    this(baseUrl, params);
+  /**
+   * @param baseUrl the Solr node's "base" URL (i.e. no core or collection in the path
+   * @param core the name of the collection or core to query; must be hosted at {@code baseUrl}
+   * @param path the request handler path to query (e.g. "/export"). If not provided (i.e. {@code
+   *     null}), the handler is instead resolved from a "qt" param embedded in {@code params}, or
+   *     defaults to "/select" if no such param is present.
+   * @param params query-parameters sent with the streaming request
+   */
+  public SolrStream(String baseUrl, String core, String path, SolrParams params) {
+    this.baseUrl = baseUrl;
     this.core = core;
+    this.path = path;
+    this.params = params;
   }
 
   public void setFieldMappings(Map<String, String> fieldMappings) {
@@ -101,6 +116,11 @@ public class SolrStream extends TupleStream {
     this.numWorkers = context.numWorkers;
     this.workerID = context.workerID;
     this.clientCache = context.getSolrClientCache();
+  }
+
+  /** Uses this cache instead of creating one; the caller closes it. */
+  void setClientCache(SolrClientCache clientCache) {
+    this.clientCache = clientCache;
   }
 
   public void setCredentials(String user, String password) {
@@ -273,7 +293,10 @@ public class SolrStream extends TupleStream {
     // performance optimization - remove extra whitespace when streaming
     requestParams = SolrParams.wrapDefaults(requestParams, SolrParams.of("indent", "off"));
 
-    QueryRequest query = new QueryRequest(requestParams, SolrRequest.METHOD.POST);
+    QueryRequest query =
+        path == null
+            ? new QueryRequest(requestParams, SolrRequest.METHOD.POST)
+            : new QueryRequest(path, requestParams, SolrRequest.METHOD.POST);
     String wt = requestParams.get(CommonParams.WT, "json");
     query.setResponseParser(new InputStreamResponseParser(wt));
 
